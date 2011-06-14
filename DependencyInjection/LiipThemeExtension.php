@@ -16,6 +16,7 @@ use Symfony\Component\HttpKernel\DependencyInjection\Extension;
 use Symfony\Component\DependencyInjection\Loader\XmlFileLoader;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\Config\FileLocator;
+use Symfony\Bundle\AsseticBundle\DependencyInjection\AsseticExtension;
 
 class LiipThemeExtension extends Extension
 {
@@ -42,5 +43,39 @@ class LiipThemeExtension extends Extension
 
         $loader = new XmlFileLoader($container, new FileLocator(__DIR__.'/../Resources/config'));
         $loader->load('templating.xml');
+        
+        if ($container->hasParameter('assetic.asset_factory.class')) {
+            #$this->configureAssetic($container);
+        }
+    }
+    
+    private function configureAssetic($container)
+    {
+        $map = $container->getParameter('kernel.bundles');
+
+        // bundle views/ directories and kernel overrides
+        foreach ($map as $name => $class) {
+            $rc = new \ReflectionClass($class);
+            foreach (array('twig', 'php') as $engine) {
+                $dir = dirname($rc->getFileName()).'/Resources/themes';
+                if (file_exists($dir)) {
+                    $container->setDefinition(
+                        'liip_theme.assetic.'.$engine.'_directory_resource.'.$name,
+                        AsseticExtension::createDirectoryResourceDefinition($name, $engine, array($dir))
+                    );
+                }
+            }
+        }
+
+        // kernel themes/ directory
+        foreach (array('twig', 'php') as $engine) {
+            $dir = $container->getParameter('kernel.root_dir').'/Resources/themes';
+            if (file_exists($dir)) {
+                $container->setDefinition(
+                    'liip_theme.assetic.'.$engine.'_directory_resource.kernel',
+                    AsseticExtension::createDirectoryResourceDefinition('', $engine, array($dir))
+                );
+            }
+        }
     }
 }
